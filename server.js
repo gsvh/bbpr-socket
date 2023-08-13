@@ -52,32 +52,32 @@ server.listen(PORT, () => {
 //   console.log(`Sent message to ${connectedClients.length} clients`)
 // }, 10000)
 
-const app = express()
+// const app = express()
 
-app.get('/', (req, res) => {
-  res.send(`Number of connected clients: ${connectedClients.length}`)
-})
+// app.get('/', (req, res) => {
+//   res.send(`Number of connected clients: ${connectedClients.length}`)
+// })
 
-const httpPort = 4000 // Choose a different port for the HTTP server
-app.listen(httpPort, () => {
-  console.log(`HTTP server is running at http://${localIPAddress}:${httpPort}`)
-})
+// const httpPort = 4000 // Choose a different port for the HTTP server
+// app.listen(httpPort, () => {
+//   console.log(`HTTP server is running at http://${localIPAddress}:${httpPort}`)
+// })
 
-app.post('/pulse', async (req, res) => {
-  console.log(req)
-  console.log('toggling the lights 💡')
-  // this data will be determined from the post request data
-  const jsonData = {
-    env: 'dev',
-    author: 'George van Heerden',
-  }
+// app.post('/pulse', async (req, res) => {
+//   console.log(req)
+//   console.log('toggling the lights 💡')
+//   // this data will be determined from the post request data
+//   const jsonData = {
+//     env: 'dev',
+//     author: 'George van Heerden',
+//   }
 
-  const jsonStr = JSON.stringify(jsonData)
+//   const jsonStr = JSON.stringify(jsonData)
 
-  connectedClients.forEach((client) => {
-    client.write(jsonStr + '\n') // Add '\n' to indicate the end of the message
-  })
-  console.log(`Sent message to ${connectedClients.length} clients`)
-  // console.log('Done 🐐', response)
-  res.send('Done 🐐')
-})
+//   connectedClients.forEach((client) => {
+//     client.write(jsonStr + '\n') // Add '\n' to indicate the end of the message
+//   })
+//   console.log(`Sent message to ${connectedClients.length} clients`)
+//   // console.log('Done 🐐', response)
+//   res.send('Done 🐐')
+// })
