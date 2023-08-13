@@ -27,6 +27,7 @@ const server = net.createServer((client) => {
 server.on('connection', (socket) => {
   console.log('Client connected')
   connectedClients.push(socket)
+  socket.write('Hello from server!\n')
   console.log({ socket })
   socket.on('close', () => {
     console.log('Client disconnected')
