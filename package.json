@@ -1,6 +1,7 @@
 {
   "name": "bbpr-monitor",
   "version": "1.0.0",
+  "engine": "node >= 18.14.0",
   "description": "Bitbucket PR monitor socket app",
   "main": "server.js",
   "scripts": {
