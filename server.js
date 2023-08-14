@@ -2,7 +2,7 @@ const ip = require('ip')
 const net = require('net')
 const express = require('express')
 
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 80
 const localIPAddress = ip.address() // Get the local IP address
 
 const connectedClients = []
