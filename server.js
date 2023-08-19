@@ -1,24 +1,15 @@
 const ip = require('ip')
 const net = require('net')
-const express = require('express')
 
 const PORT = process.env.PORT || 80
 const localIPAddress = ip.address() // Get the local IP address
 
 const connectedClients = []
-
+const credentials = {
+  username: 'brucewayne',
+  password: 'imbatman',
+}
 const server = net.createServer((client) => {
-  client.on('data', (data) => {
-    if (data.length === 0) {
-      client.end()
-    } else {
-      console.log(data.toString())
-
-      // Send a response back to the client
-      client.write('Response from server: Data received!')
-    }
-  })
-
   client.on('end', () => {
     console.log('Closing connection')
   })
@@ -26,9 +17,8 @@ const server = net.createServer((client) => {
 
 server.on('connection', (socket) => {
   console.log('Client connected')
-  connectedClients.push(socket)
-  socket.write('Hello from server!\n')
-  console.log({ socket })
+
+  // console.log({ socket })
   socket.on('close', () => {
     console.log('Client disconnected')
     const index = connectedClients.indexOf(socket)
@@ -36,8 +26,43 @@ server.on('connection', (socket) => {
       connectedClients.splice(index, 1)
     }
   })
+
   socket.on('error', (err) => {
     console.log('Socket error:', err)
+  })
+
+  socket.on('data', (data) => {
+    if (data.length === 0) {
+      client.end()
+    } else {
+      const clientCredentials = data.toString().split(':') // Assuming data is in the form "username:password"
+      console.log({ credentials })
+      const username = clientCredentials[0]
+      const password = clientCredentials[1]
+
+      if (
+        username === credentials.username &&
+        password === credentials.password
+      ) {
+        console.log('Valid credentials')
+
+        const jsonData = {
+          message: 'Client authorized',
+        }
+        socket.write(JSON.stringify(jsonData))
+        // Valid credentials, proceed with communication
+        socket.isAuthorized = true
+        connectedClients.push(socket)
+        // ...
+      } else {
+        // Invalid credentials, close the connection
+        socket.write('Invalid credentials')
+        socket.end()
+      }
+
+      // Send a response back to the client
+      // client.write('Response from server: Data received!')
+    }
   })
 })
 
