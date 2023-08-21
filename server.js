@@ -32,37 +32,40 @@ server.on('connection', (socket) => {
   })
 
   socket.on('data', (data) => {
-    if (data.length === 0) {
-      client.end()
-    } else {
-      const clientCredentials = data.toString().split(':') // Assuming data is in the form "username:password"
-      console.log({ credentials })
-      const username = clientCredentials[0]
-      const password = clientCredentials[1]
+    const request = data.toString('utf-8')
+    console.log('Received data:')
+    console.log(request)
 
-      if (
-        username === credentials.username &&
-        password === credentials.password
-      ) {
-        console.log('Valid credentials')
+    //   if (data.length === 0) {
+    //     client.end()
+    //   } else {
+    //     const clientCredentials = data.toString().split(':') // Assuming data is in the form "username:password"
+    //     const username = clientCredentials[0]
+    //     const password = clientCredentials[1]
 
-        const jsonData = {
-          message: 'Client authorized',
-        }
-        socket.write(JSON.stringify(jsonData))
-        // Valid credentials, proceed with communication
-        socket.isAuthorized = true
-        connectedClients.push(socket)
-        // ...
-      } else {
-        // Invalid credentials, close the connection
-        socket.write('Invalid credentials')
-        socket.end()
-      }
+    //     if (
+    //       username === credentials.username &&
+    //       password === credentials.password
+    //     ) {
+    //       console.log('Valid credentials')
 
-      // Send a response back to the client
-      // client.write('Response from server: Data received!')
-    }
+    //       const jsonData = {
+    //         message: 'Client authorized',
+    //       }
+    //       socket.write(JSON.stringify(jsonData))
+    //       // Valid credentials, proceed with communication
+    //       socket.isAuthorized = true
+    //       connectedClients.push(socket)
+    //       // ...
+    //     } else {
+    //       // Invalid credentials, close the connection
+    //       socket.write('Invalid credentials')
+    //       socket.end()
+    //     }
+
+    //     // Send a response back to the client
+    //     // client.write('Response from server: Data received!')
+    // }
   })
 })
 
