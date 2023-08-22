@@ -1,6 +1,36 @@
 const ip = require('ip')
 const net = require('net')
 
+function parseHttpRequest(requestString) {
+  const lines = requestString.split('\r\n')
+  const [method, path, version] = lines[0].split(' ')
+
+  const headers = {}
+  let body = ''
+
+  let inBody = false
+  for (let i = 1; i < lines.length; i++) {
+    if (!inBody && lines[i] === '') {
+      inBody = true
+      continue
+    }
+    if (!inBody) {
+      const [name, value] = lines[i].split(': ')
+      headers[name.toLowerCase()] = value
+    } else {
+      body += lines[i]
+    }
+  }
+
+  return {
+    method,
+    path,
+    version,
+    headers,
+    body,
+  }
+}
+
 const PORT = process.env.PORT || 80
 const localIPAddress = ip.address() // Get the local IP address
 
@@ -32,9 +62,11 @@ server.on('connection', (socket) => {
   })
 
   socket.on('data', (data) => {
-    const request = data.toString('utf-8')
-    console.log('Received data:')
-    console.log(request)
+    const parsedRequest = parseHttpRequest(data.toString('utf-8'))
+    console.log(parsedRequest)
+    // const request = data.toString('utf-8')
+    // console.log('Received data:')
+    // console.log(request)
 
     //   if (data.length === 0) {
     //     client.end()
