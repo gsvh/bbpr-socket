@@ -64,6 +64,14 @@ server.on('connection', (socket) => {
   socket.on('data', (data) => {
     const parsedRequest = parseHttpRequest(data.toString('utf-8'))
     console.log(parsedRequest)
+
+    const response = 'HTTP/1.1 200 OK'
+
+    // Send HTTP response
+    socket.write(response, 'utf-8', () => {
+      socket.end() // Close the connection after sending the response
+    })
+
     // const request = data.toString('utf-8')
     // console.log('Received data:')
     // console.log(request)
