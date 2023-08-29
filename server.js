@@ -1,5 +1,6 @@
 const ip = require('ip')
 const net = require('net')
+const fs = require('fs')
 
 function parseHttpRequest(requestString) {
   const lines = requestString.split('\r\n')
@@ -31,122 +32,216 @@ function parseHttpRequest(requestString) {
   }
 }
 
+const responses = {
+  200: 'HTTP/1.1 200 OK\r\n\r\n',
+  400: 'HTTP/1.1 400 Bad Request\r\n\r\n',
+  401: 'HTTP/1.1 401 Unauthorized\r\n\r\n',
+  404: 'HTTP/1.1 404 Not Found\r\n\r\n',
+  500: 'HTTP/1.1 500 Internal Server Error\r\n\r\n',
+}
+
+const methods = {
+  GET: 'GET',
+  POST: 'POST',
+  PUT: 'PUT',
+  DELETE: 'DELETE',
+}
+
+const key = process.env.KEY
+function crypt(input, key) {
+  let crypted = ''
+  for (let i = 0; i < input.length; ++i) {
+    crypted += String.fromCharCode(
+      input.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    )
+  }
+  return crypted
+}
+
+function validateHeaders(headers) {
+  const correctXEventKey = headers['x-event-key'] === 'pullrequest:fulfilled'
+  // const correctXHookUUID =
+  //   headers['x-hook-uuid'] === 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2'
+  const correctUserAgent = headers['user-agent'] === 'Bitbucket-Webhooks/2.0'
+  const correctContentType = headers['content-type'] === 'application/json'
+  return (
+    correctXEventKey &&
+    // correctXHookUUID &&
+    correctUserAgent &&
+    correctContentType
+  )
+}
+function parseBody(body) {
+  try {
+    const {
+      repository: {
+        name: repositoryName,
+        project: { name: projectName },
+      },
+      pullrequest: {
+        author: { display_name: authorName },
+        destination: {
+          branch: { name: branchName },
+        },
+      },
+    } = body
+    return {
+      valid: true,
+      data: { repositoryName, projectName, authorName, branchName },
+    }
+  } catch (error) {
+    return { valid: false, data: null }
+  }
+}
+
+function validateRequest(request) {
+  const { path, headers, body } = request
+  const correctPath = path === '/bitbucket'
+  const correctHeaders = validateHeaders(headers)
+  const { valid: correctBody } = parseBody(JSON.parse(body))
+  return correctPath && correctHeaders && correctBody
+}
+
 const PORT = process.env.PORT || 80
 const localIPAddress = ip.address() // Get the local IP address
 
 const connectedClients = []
 const credentials = {
-  username: 'brucewayne',
-  password: 'imbatman',
+  username: process.env.CREDENTIALS_NAME,
+  password: process.env.CREDENTIALS_PASSWORD,
 }
-const server = net.createServer((client) => {
-  client.on('end', () => {
-    console.log('Closing connection')
-  })
-})
 
-server.on('connection', (socket) => {
+const credentialsString = `${credentials.username}:${credentials.password}`
+const server = net.createServer((socket) => {
   console.log('Client connected')
 
-  // console.log({ socket })
-  socket.on('close', () => {
-    console.log('Client disconnected')
-    const index = connectedClients.indexOf(socket)
-    if (index !== -1) {
-      connectedClients.splice(index, 1)
-    }
-  })
-
-  socket.on('error', (err) => {
-    console.log('Socket error:', err)
-  })
-
   socket.on('data', (data) => {
-    const parsedRequest = parseHttpRequest(data.toString('utf-8'))
-    console.log(parsedRequest)
+    const request = parseHttpRequest(data.toString('utf-8'))
 
-    const response = 'HTTP/1.1 200 OK'
+    if (!methods[request?.method]) {
+      const decryptedCredentials = crypt(request.method, key)
+      if (decryptedCredentials === credentialsString) {
+        connectedClients.push(socket)
+        const OK = crypt(JSON.stringify({ status: 'OK' }), key)
+        socket.write(OK, 'utf-8')
+      } else {
+        const ERROR = crypt(JSON.stringify({ status: 'ERROR' }), key)
+        socket.write(ERROR, 'utf-8')
+        socket.end()
+      }
+    }
+    // can connect
+    else {
+      //close connection
 
-    // Send HTTP response
-    socket.write(response, 'utf-8', () => {
-      socket.end() // Close the connection after sending the response
+      switch (request.method) {
+        case methods.GET:
+          console.log('GET request', request.path)
+          switch (request.path) {
+            case '/':
+              fs.readFile('index.html', (err, content) => {
+                if (err) {
+                  socket.write(responses[500], 'utf-8', () => {
+                    socket.end() // Close the connection after sending the response))
+                  })
+                } else {
+                  socket.write(
+                    'HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n'
+                  )
+                  socket.write(content.toString())
+                  socket.end()
+                  console.log('Sent index.html')
+                }
+              })
+              break
+            case '/favicon.ico':
+              //return 404
+              socket.write('HTTP/1.1 404 Not Found\r\n\r\n')
+              socket.end()
+          }
+          break
+        case methods.POST:
+          console.log('POST request')
+
+          const isValidBitbucketRequest = validateRequest(request)
+
+          if (!isValidBitbucketRequest) {
+            console.error('Invalid request')
+            socket.write(responses[401], 'utf-8', () => {
+              socket.end() // Close the connection after sending the response
+            })
+          }
+          // // Send HTTP OK response
+          socket.write(responses[200], 'utf-8', () => {
+            socket.end() // Close the connection after sending the response
+          })
+
+          const { data } = parseBody(JSON.parse(request.body))
+
+          let body
+          if (
+            ['master', 'production', 'prod', 'main'].includes(
+              data.branchName.toLowerCase()
+            )
+          ) {
+            body = {
+              text1: 'Production deploy',
+              text2: `${data.projectName}/${data.repositoryName}`,
+              text3: `Destination branch: ${data.branchName}`,
+            }
+          } else if (
+            ['dev', 'develop', 'development'].includes(
+              data.branchName.toLowerCase()
+            )
+          ) {
+            body = {
+              text1: data.authorName,
+              text2: `${data.projectName}/${data.repositoryName}`,
+              text3: `Destination branch: ${data.branchName}`,
+            }
+          } else {
+            body = null
+          }
+
+          if (body) {
+            const encryptedBody = crypt(JSON.stringify(body), key)
+            console.log(encryptedBody)
+
+            if (connectedClients.length > 0) {
+              connectedClients.forEach((esp32) => {
+                esp32.write(encryptedBody, 'utf-8')
+              })
+            }
+          }
+
+          break
+        case methods.PUT ?? methods.DELETE ?? methods.PATCH:
+          console.log('Invalid request')
+          // Send HTTP 400 Bad Request response
+          socket.write(responses[400], 'utf-8', () => {
+            socket.end() // Close the connection after sending the response
+          })
+          break
+        default:
+          console.log('Unknown request', request)
+          break
+      }
+    }
+
+    socket.on('close', () => {
+      console.log('Client disconnected')
+      const index = connectedClients.indexOf(socket)
+      if (index !== -1) {
+        connectedClients.splice(index, 1)
+      }
     })
 
-    // const request = data.toString('utf-8')
-    // console.log('Received data:')
-    // console.log(request)
-
-    //   if (data.length === 0) {
-    //     client.end()
-    //   } else {
-    //     const clientCredentials = data.toString().split(':') // Assuming data is in the form "username:password"
-    //     const username = clientCredentials[0]
-    //     const password = clientCredentials[1]
-
-    //     if (
-    //       username === credentials.username &&
-    //       password === credentials.password
-    //     ) {
-    //       console.log('Valid credentials')
-
-    //       const jsonData = {
-    //         message: 'Client authorized',
-    //       }
-    //       socket.write(JSON.stringify(jsonData))
-    //       // Valid credentials, proceed with communication
-    //       socket.isAuthorized = true
-    //       connectedClients.push(socket)
-    //       // ...
-    //     } else {
-    //       // Invalid credentials, close the connection
-    //       socket.write('Invalid credentials')
-    //       socket.end()
-    //     }
-
-    //     // Send a response back to the client
-    //     // client.write('Response from server: Data received!')
-    // }
+    socket.on('error', (err) => {
+      console.log('Socket error:', err)
+    })
   })
 })
 
 server.listen(PORT, () => {
   console.log(`Server is running at http://${localIPAddress}:${PORT}`)
 })
-
-// // Send a message to connected clients every 10 seconds
-// setInterval(() => {
-//   connectedClients.forEach((client) => {
-//     client.write('Hello from server every 10 seconds!\n')
-//   })
-//   console.log(`Sent message to ${connectedClients.length} clients`)
-// }, 10000)
-
-// const app = express()
-
-// app.get('/', (req, res) => {
-//   res.send(`Number of connected clients: ${connectedClients.length}`)
-// })
-
-// const httpPort = 4000 // Choose a different port for the HTTP server
-// app.listen(httpPort, () => {
-//   console.log(`HTTP server is running at http://${localIPAddress}:${httpPort}`)
-// })
-
-// app.post('/pulse', async (req, res) => {
-//   console.log(req)
-//   console.log('toggling the lights 💡')
-//   // this data will be determined from the post request data
-//   const jsonData = {
-//     env: 'dev',
-//     author: 'George van Heerden',
-//   }
-
-//   const jsonStr = JSON.stringify(jsonData)
-
-//   connectedClients.forEach((client) => {
-//     client.write(jsonStr + '\n') // Add '\n' to indicate the end of the message
-//   })
-//   console.log(`Sent message to ${connectedClients.length} clients`)
-//   // console.log('Done 🐐', response)
-//   res.send('Done 🐐')
-// })

@@ -2,3 +2,4 @@ node_modules
 ec2
 .DS_STORE
 test.json
+.env
