@@ -163,14 +163,15 @@ const server = net.createServer((socket) => {
         case methods.POST:
           console.log('POST request')
 
-          const isValidBitbucketRequest = validateRequest(request)
+          // const isValidBitbucketRequest = validateRequest(request)
 
-          if (!isValidBitbucketRequest) {
-            console.error('Invalid request')
-            socket.write(responses[401], 'utf-8', () => {
-              socket.end() // Close the connection after sending the response
-            })
-          }
+          // if (!isValidBitbucketRequest) {
+          //   console.error('Invalid request')
+          //   socket.write(responses[401], 'utf-8', () => {
+          //     socket.end() // Close the connection after sending the response
+          //   })
+          // }
+
           // // Send HTTP OK response
           socket.write(responses[200], 'utf-8', () => {
             socket.end() // Close the connection after sending the response
