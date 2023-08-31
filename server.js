@@ -47,7 +47,7 @@ const methods = {
   DELETE: 'DELETE',
 }
 
-const key = process.env.KEY
+const key = 'fb478c906ac87'
 function crypt(input, key) {
   let crypted = ''
   for (let i = 0; i < input.length; ++i) {
@@ -107,8 +107,8 @@ const localIPAddress = ip.address() // Get the local IP address
 
 const connectedClients = []
 const credentials = {
-  username: process.env.CREDENTIALS_NAME,
-  password: process.env.CREDENTIALS_PASSWORD,
+  username: 'brucewayne',
+  password: 'imbatman',
 }
 
 const credentialsString = `${credentials.username}:${credentials.password}`
